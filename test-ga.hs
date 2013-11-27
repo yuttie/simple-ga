@@ -1,7 +1,7 @@
 module Main (main) where
 
-import           Data.Array.IArray (Array)
-import qualified Data.Array.IArray as A
+import           Data.Array.Unboxed (UArray)
+import qualified Data.Array.Unboxed as A
 import           Data.List
 import           Data.Ord
 
@@ -10,7 +10,7 @@ import           GA
 
 main :: IO ()
 main = do
-    cs <- populate 10 repr :: IO [Array Int Int]
+    cs <- populate 10 repr :: IO [UArray Int Int]
     loop (1::Int) cs
   where
     loop n cs = do
@@ -26,5 +26,5 @@ main = do
         , envMutationProb  = 0.01
         , envFitnessFunc   = eval
         }
-    eval :: Array Int Int -> Double
+    eval :: UArray Int Int -> Double
     eval c = exp $ negate $ fromIntegral $ sum $ map (\(i, e) -> abs $ i - e) $ A.assocs c
