@@ -14,6 +14,17 @@ import           Data.Ord
 import           Data.Tuple
 
 
+data Environment cr a = Environment
+    { envCrossoverProb :: Double
+    , envMutationProb  :: Double
+    , envFitnessFunc   :: cr -> a
+    }
+
+data Representation i e = Representation
+    { reprIxRange   :: (i, i)
+    , reprCodeRange :: (e, e)
+    }
+
 selectRoulette :: (Fractional b, Ord b, Random b, MonadRandom m)
                => (a -> b)
                -> [a]
@@ -40,54 +51,51 @@ crossoverUniform c1 c2 = do
 
 mutate :: (IArray a e, Ix i, Random e, Functor m, MonadRandom m)
        => Double
+       -> (e, e)
        -> a i e
        -> m (a i e)
-mutate p c = do
+mutate p range c = do
     is <- catMaybes <$> zipWith (\i r -> if r < p then Just i else Nothing) (A.indices c) <$> getRandoms
-    rs <- getRandoms
+    rs <- getRandomRs range
     return $ c A.// zip is rs
 
 evolve :: (IArray a e, Ix i, Random e, Fractional b, Ord b, Random b, Functor m, MonadRandom m)
-       => (a i e -> b) -> [a i e] -> m [a i e]
-evolve f cs = concat <$> replicateM (length cs `div` 2) loop
+       => Representation i e -> Environment (a i e) b -> [a i e] -> m [a i e]
+evolve repr env cs = concat <$> replicateM (length cs `div` 2) loop
   where
-    probCrossover = 1.0 :: Double
-    probMutation = 0.01 :: Double
     loop = do
-        parent1 <- selectRoulette f cs
-        parent2 <- selectRoulette f cs
-        (child1, child2) <- getRandom >>= \r -> if r < probCrossover
+        parent1 <- selectRoulette (envFitnessFunc env) cs
+        parent2 <- selectRoulette (envFitnessFunc env) cs
+        (child1, child2) <- getRandom >>= \r -> if r < (envCrossoverProb env)
             then crossoverUniform parent1 parent2
             else return (parent1, parent2)
-        child1' <- mutate probMutation child1
-        child2' <- mutate probMutation child2
+        child1' <- mutate (envMutationProb env) (reprCodeRange repr) child1
+        child2' <- mutate (envMutationProb env) (reprCodeRange repr) child2
         return [child1', child2']
 
 populate :: (IArray a e, Ix i, Random e, Functor m, MonadRandom m)
-         => Int -> (i, i) -> m [a i e]
-populate n r = replicateM n gen
+         => Int -> Representation i e -> m [a i e]
+populate n repr = replicateM n gen
   where
-    gen = A.listArray r <$> getRandoms
-
-newtype GeneValue = GeneValue Int
-                  deriving (Eq, Ord, Show)
-
-instance Random GeneValue where
-    randomR (GeneValue l, GeneValue u) g = (GeneValue x, g')
-      where
-        (x, g') = randomR (max 1 l, min 10 u) g
-    random g = (GeneValue x, g')
-      where
-        (x, g') = randomR (1, 10) g
+    gen = A.listArray (reprIxRange repr) <$> getRandomRs (reprCodeRange repr)
 
 main :: IO ()
 main = do
-    cs <- populate 10 (1, 10) :: IO [Array Int GeneValue]
+    cs <- populate 10 repr :: IO [Array Int Int]
     loop (1::Int) cs
   where
     loop n cs = do
-        cs' <- evolve eval cs
+        cs' <- evolve repr env cs
         print (n, maximumBy (comparing fst) $ zip (map eval cs') cs')
         loop (n + 1) cs'
-    eval :: Array Int GeneValue -> Double
-    eval c = exp $ negate $ fromIntegral $ sum $ map (\(i, GeneValue e) -> abs $ i - e) $ A.assocs c
+    repr = Representation
+        { reprIxRange   = (1, 10)
+        , reprCodeRange = (1, 10)
+        }
+    env = Environment
+        { envCrossoverProb = 1.0
+        , envMutationProb  = 0.01
+        , envFitnessFunc   = eval
+        }
+    eval :: Array Int Int -> Double
+    eval c = exp $ negate $ fromIntegral $ sum $ map (\(i, e) -> abs $ i - e) $ A.assocs c
