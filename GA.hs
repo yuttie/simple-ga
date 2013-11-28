@@ -43,19 +43,19 @@ data Environment cr a = Environment
     , envFitnessFunc   :: cr -> a
     }
 
-selectRoulette :: (Fractional b, Ord b, Random b, MonadRandom m)
-               => (a -> b)
-               -> [a]
-               -> m a
+selectRoulette :: (Real a, MonadRandom m)
+               => (cr -> a)
+               -> [cr]
+               -> m cr
 selectRoulette f xs = do
-    let es = map f xs
+    let es = map (realToFrac . f) xs :: [Double]
     let ws = map (/ sum es) es
     let roulette = zip (scanl1 (+) ws) xs
     r <- getRandom
     return $ snd $ head $ dropWhile (not . (r <) . fst) roulette
 
-evolve :: (Chromosome cr, Fractional b, Ord b, Random b, Functor m, MonadRandom m)
-       => Environment cr b -> [cr] -> m [cr]
+evolve :: (Chromosome cr, Real a, Functor m, MonadRandom m)
+       => Environment cr a -> [cr] -> m [cr]
 evolve env cs = concat <$> replicateM (length cs `div` 2) loop
   where
     loop = do
