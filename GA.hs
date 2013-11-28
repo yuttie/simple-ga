@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 module GA
   ( Chromosome(..)
   , Environment(..)
@@ -37,7 +38,7 @@ instance (IArray a e, Ix i, Random e) => Chromosome (a i e) where
         rs <- getRandoms
         return $ c A.// zip is rs
 
-data Environment cr a = Environment
+data Environment cr = forall a. Real a => Environment
     { envCrossoverProb :: Double
     , envMutationProb  :: Double
     , envFitnessFunc   :: cr -> a
@@ -54,13 +55,15 @@ selectRoulette f xs = do
     r <- getRandom
     return $ snd $ head $ dropWhile (not . (r <) . fst) roulette
 
-evolve :: (Chromosome cr, Real a, Functor m, MonadRandom m)
-       => Environment cr a -> [cr] -> m [cr]
+evolve :: (Chromosome cr, Functor m, MonadRandom m)
+       => Environment cr -> [cr] -> m [cr]
 evolve env cs = concat <$> replicateM (length cs `div` 2) loop
   where
     loop = do
-        parent1 <- selectRoulette (envFitnessFunc env) cs
-        parent2 <- selectRoulette (envFitnessFunc env) cs
+        parent1 <- case env of
+            Environment _ _ f -> selectRoulette f cs
+        parent2 <- case env of
+            Environment _ _ f -> selectRoulette f cs
         (child1, child2) <- getRandom >>= \r -> if r < (envCrossoverProb env)
             then crossover parent1 parent2
             else return (parent1, parent2)
