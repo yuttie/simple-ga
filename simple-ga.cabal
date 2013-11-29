@@ -15,3 +15,11 @@ executable test-ga
                      , MonadRandom >=0.1  && <0.2
   default-language:    Haskell2010
   ghc-options:         -Wall
+
+executable test-ga-tree
+  main-is:             test-ga-tree.hs
+  build-depends:       base        >=4.6  && <4.7
+                     , array       >=0.4  && <0.5
+                     , MonadRandom >=0.1  && <0.2
+  default-language:    Haskell2010
+  ghc-options:         -Wall
