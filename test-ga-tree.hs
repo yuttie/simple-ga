@@ -5,7 +5,6 @@ import           Control.Monad
 import           Control.Monad.Random
 import           Data.List
 import           Data.Ord
-import           Data.Ratio
 
 import           GA
 
@@ -47,7 +46,7 @@ evalExp e = case e of
 
 instance Random Exp where
     randomR = undefined
-    random g = runRand randExp g
+    random = runRand randExp
       where
         randExp = do
             r <- getRandom
@@ -85,8 +84,8 @@ main = do
   where
     loop n cs = do
         cs' <- evolve env cs
-        let (v, exp) = maximumBy (comparing fst) $ zip (map eval cs') cs'
-        print (n, v, exp)
+        let (v, e) = maximumBy (comparing fst) $ zip (map eval cs') cs'
+        print (n, v, e)
         loop (n + 1) cs'
     env = Environment
         { envCrossoverProb = 1.0

@@ -64,7 +64,7 @@ evolve env cs = concat <$> replicateM (length cs `div` 2) loop
             Environment _ _ f -> selectRoulette f cs
         parent2 <- case env of
             Environment _ _ f -> selectRoulette f cs
-        (child1, child2) <- getRandom >>= \r -> if r < (envCrossoverProb env)
+        (child1, child2) <- getRandom >>= \r -> if r < envCrossoverProb env
             then crossover parent1 parent2
             else return (parent1, parent2)
         child1' <- mutate (envMutationProb env) child1
